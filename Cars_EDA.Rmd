@@ -1,0 +1,638 @@
+---
+title: "<center> 1° Parte R | Data Analytics"
+author: "<center> VEN"
+date: "<center> 23-06-2022"
+output:
+  html_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+<center>Vittorio Amoruso</center>
+
+<center>Nicola Zucchia</center>
+
+<center>Erion Islamay</center>
+
+## 1. Languages Used
+
+<center><strong> R, Rmd, HTML, CSS </strong></center>
+
+## Inclusione dei Packages
+
+```{r message = FALSE, warning = FALSE}
+
+library(boot)
+library(car)
+library(ellipse)
+library(ggplot2)
+library(gridExtra)
+library(corrplot)
+library(RColorBrewer)
+library(GGally)
+library(cluster)
+```
+
+## Load and Examine of DataSet
+
+<strong> Text Edit </strong>
+
+1)  data presente all'interno del file in formato testuale
+
+2)  data conforme alla convenzione csv
+
+3)  Header
+
+```{r message=FALSE, warning=FALSE}
+mydata<-read.csv("imports-85.data",header = FALSE)
+
+```
+
+<strong> Correttezza e Struttura </strong>
+
+```{r}
+
+dim(mydata)
+
+```
+
+Il Dataframe presenta 205 osservazioni in 26 variabili
+
+<strong> Visualizzazione del Contenuto </strong>
+
+```{r}
+
+# View(ds)
+
+head(mydata, 5)
+
+```
+
+<strong> Assegnazione dei nomi - CamelCase </strong>
+
+```{r}
+
+names(mydata) <- c('Symboling', 'NormalizedLosses', 'Make', 'FuelType', 'Aspiration', 'NumOfDoors', 'BodyStyle', 'DriveWheels', 'EngineLocation', 'WheelBase', 'Length', 'Width', 'Height', 'CurbWeight', 'EngineType', 'NumOfCylinders', 'EngineSize', 'FuelSystem', 'Bore', 'Stroke', 'CompressionRatio', 'Horsepower', 'PeakRpm', 'CityMpg', 'HighwayMpg', 'Price')
+
+
+
+```
+
+## Structure + Data Wrangling
+
+<strong> Qualitative vs Quantitative </strong>
+
+```{r}
+
+str(mydata)
+
+```
+
+```{r message = FALSE, warning = FALSE}
+
+mydata$Symboling      <- factor(mydata$Symboling)
+mydata$Make           <- factor(mydata$Make)
+mydata$FuelType       <- factor(mydata$FuelType)
+mydata$Aspiration     <- factor(mydata$Aspiration)
+mydata$NumOfDoors     <- factor(mydata$NumOfDoors)
+mydata$BodyStyle      <- factor(mydata$BodyStyle)
+mydata$DriveWheels    <- factor(mydata$DriveWheels)
+mydata$EngineLocation <- factor(mydata$EngineLocation)
+mydata$EngineType     <- factor(mydata$EngineType)
+mydata$NumOfCylinders <- factor(mydata$NumOfCylinders)
+mydata$FuelSystem     <- factor(mydata$FuelSystem)
+
+mydata$NormalizedLosses <- as.numeric(mydata$NormalizedLosses)
+mydata$Bore             <- as.numeric(mydata$Bore)
+mydata$Stroke           <- as.numeric(mydata$Stroke)
+mydata$Horsepower       <- as.numeric(mydata$Horsepower)
+mydata$PeakRpm          <- as.numeric(mydata$PeakRpm)
+mydata$Price            <- as.numeric(mydata$Price)
+```
+
+```{r}
+
+str(mydata)
+
+```
+
+<strong> Eliminazione V. non di Interesse </strong>
+
+```{r}
+
+mydata <- mydata[ , - c(1, 2) ]
+```
+
+<strong> Gestione degli NA, '?' </strong>
+
+```{r}
+
+mydata <- na.omit(mydata)
+
+```
+
+```{r}
+
+cleaner <- function(ds, sc, show = FALSE) {
+  
+# ds = DataSet , sc = SpecialCharacter
+  
+  unlist <- as.numeric( )
+  
+  for (i in 1:dim(ds)[1])
+    
+  {
+    
+    dr <- ds[ i , ]
+    
+    if ( any(dr == sc) ) unlist[length(unlist) + 1] <- i
+    
+  }
+  
+  if (show == TRUE)
+  
+  {
+    
+    print('Le unita eliminate sono.. ')
+    
+    print(unlist)
+    
+  }
+  
+  return(ds[ - unlist , ])
+  
+}
+
+```
+
+```{r}
+
+mydata <- cleaner(mydata, '?', show = TRUE)
+
+```
+
+## Categoriali Single
+
+```{r}
+
+Make           <- table(mydata$Make)
+FuelType       <- table(mydata$FuelType)
+Aspiration     <- table(mydata$Aspiration)
+NumOfDoors     <- table(mydata$NumOfDoors)
+BodyStyle      <- table(mydata$BodyStyle)
+DriveWheels    <- table(mydata$DriveWheels)
+EngineLocation <- table(mydata$EngineLocation)
+EngineType     <- table(mydata$EngineType)
+NumOfCylinders <- table(mydata$NumOfCylinders)
+FuelSystem     <- table(mydata$FuelSystem)
+
+```
+
+```{r}
+
+barplot(BodyStyle, col = c("grey", "grey", "lightblue", "#eb8060", "grey"), border=NA, main = "BodyStyle")
+barplot(DriveWheels, col = c("grey", "#eb8060", "lightblue"), border=NA, main = "DriveWheels")
+barplot(EngineType, col = c("grey", "grey", "grey", "#eb8060", "grey", "grey", "grey"), border=NA, main = "EngineType")
+barplot(NumOfCylinders, col = c("grey", "grey", "#eb8060", "grey", "grey", "grey", "grey"), border=NA, main = "NumOfCylinders")
+barplot(FuelSystem, col = c("grey", "lightblue", "grey", "grey", "grey", "#eb8060", "grey", "grey"), border=NA, main = "FuelSystem")
+
+```
+
+## Categoriali Bivariate
+
+```{r message = FALSE, warning = FALSE}
+
+table(mydata$FuelType, mydata$Aspiration)
+
+chisq.test(table(mydata$FuelType, mydata$Aspiration))
+
+table(mydata$DriveWheels, mydata$FuelType)
+
+chisq.test(table(mydata$DriveWheels, mydata$FuelType))
+```
+
+## Considerazioni
+
+```{r}
+
+#plot maximum price according to the automobile maker i.e., brand
+maxPrice <- aggregate(mydata$Price , by = list(mydata$Make), FUN = "max")
+
+names(maxPrice) <- c("Brand", "Price")
+
+maxPrice <- maxPrice[ order(maxPrice$Price) , ]
+
+maxPrice$Brand <- factor(maxPrice$Brand, levels = maxPrice$Brand)
+
+ggplot(data = maxPrice, aes(x = Price, y = Brand)) +
+    geom_bar(stat = "identity", fill = "lightblue") +
+    geom_text(aes(label = paste0("$ ", Price)), hjust = -0.05) +
+    coord_cartesian(xlim = c(0, 52000)) +
+    labs(title = "Max price of automobile in each Brand")
+
+```
+
+```{r}
+
+meanPrice <- aggregate(mydata$Price, by = list(mydata$Make), FUN = "mean")
+
+names(meanPrice) <- c("Brand","Price")
+
+meanPrice <- meanPrice[ order(meanPrice$Price) , ]
+
+meanPrice$Brand <- factor(meanPrice$Brand, levels = meanPrice$Brand)
+
+ggplot(data = meanPrice, aes(x = Price, y = Brand)) +
+    geom_bar(stat = "identity", fill = "Lightblue") +
+    geom_text(aes(label = paste0("$ ", round(Price))), hjust = -0.05) +
+    coord_cartesian(xlim = c(0,48000)) +
+    labs(title = "Mean price of automobile in each Brand")
+
+```
+
+## 2. Analisi Variabili QUANTITATIVE
+
+```{r}
+mydata.num<- mydata[,c("WheelBase","Length","Width","Height","CurbWeight",              
+                       "EngineSize","Bore","Stroke","CompressionRatio","Horsepower",
+                       "PeakRpm","CityMpg","HighwayMpg","Price")] 
+summary(mydata.num)
+```
+
+-   Diamo uno sguardo ad alcune variabili quantitative e alle loro distribuzioni
+
+```{r message=FALSE, warning=FALSE}
+ggpairs(mydata.num,               
+        columns = c("Length","Width","CurbWeight", "Price"),       
+        aes(color = mydata$FuelType,  # Color by group (cat. variable)
+            alpha = 0.5), upper = list(continuous = "points"))
+
+ggpairs(mydata.num,               
+        columns = c("EngineSize","Horsepower", "Price"),       
+        aes(color = mydata$FuelType,  # Color by group (cat. variable)
+            alpha = 0.5), upper = list(continuous = "points"))
+
+ggpairs(mydata.num,               
+        columns = c("CityMpg","HighwayMpg","Price"),       
+        aes(color = mydata$FuelType,  # Color by group (cat. variable)
+            alpha = 0.5), upper = list(continuous = "points"))
+
+```
+
+### ANALISI DELLE CORRELAZIONI
+
+-   Guardiamo a un quadro generale delle varie correlazioni tra le variabili quantitative, andando a studiare nel dettaglio le più significative.
+
+```{r}
+
+corr<- round(cor(mydata.num),2)
+corrplot(corr, type="upper", order="hclust",
+         col=brewer.pal(n=8, name="RdYlBu"))
+```
+
+### ANALISI UNIVARIATA
+
+Studiamo le distribuzioni delle principali variabili quantitative interessanti mostrando qualche istogramma e curve di densità.
+
+Si osserva che, per alcune variabili, la scarsa ampiezza campionaria non rende efficace la visualizzazione dei dati tramite istogrammi.
+
+### PRICE
+
+```{r}
+ggplot(mydata, aes(x = "", y = Price)) +
+  geom_boxplot(width = 0.4, colour="darkblue", fill="lightblue") +
+  geom_jitter( colour="red", 
+              width = 0.1, size = 1) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) + 
+  labs(x = NULL)
+
+ggplot(mydata, aes(x = "", y = log(Price))) +
+  geom_boxplot(width = 0.4, colour="darkblue", fill="lightblue") +
+  geom_jitter( colour="red", 
+              width = 0.1, size = 1) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) + 
+  labs(x = NULL)
+```
+
+Come si nota dal boxplot, la variabile Price presenta una asimmetria marcata e molti outliers nella coda destra della distribuzione. Si osserva come fare una trasformazione logaritmica renda la distribuzione più regolare. Per esserne sicuri facciamo un confronto con la Gaussiana.
+
+```{r message=FALSE, warning=FALSE}
+#si vede che il prezzo è fortemente assimetrico quindi forse da trasformare in log
+#plot(density(mydata$price))
+ggplot(mydata, aes(x=Price)) + 
+ geom_histogram(aes(y=..density..), colour="darkblue", fill="lightblue")+
+ geom_density(alpha=.2, fill="#FF6666") 
+
+ggplot(mydata, aes(x=log(Price))) + 
+ geom_histogram(aes(y=..density..), colour="darkblue", fill="lightblue")+
+ geom_density(alpha=.2, fill="#FF6666") 
+```
+
+La variabile logPrice sembra avere una tendenza trimodale a partire dal grafico della sua densità.
+
+Si osserva come fare una trasformazione logaritmica renda la distribuzione più regolare. Per esserne sicuri facciamo un confronto con la Gaussiana.
+
+### CONFRONTI CON LA GAUSSIANA
+
+Testiamo la normalità della variabile price e della sua trasformata logPrice.
+
+#### PRICE vs PNORM
+
+```{r}
+
+plot(ecdf(scale(mydata$Price)), cex=0.5, main="Price vs Pnorm") 
+curve(pnorm(x), add=TRUE)
+
+plot(ecdf(scale(log(mydata$Price))), cex=0.5, main="logPrice vs Pnorm") 
+curve(pnorm(x), add=TRUE)
+```
+
+Il confronto con la funzione di ripartizione empirica suggerisce che una la variabile trasformata tenda a distribuirsi più normalmente della variabile di partenza.
+
+#### Confrontiamo i QQplot
+
+```{r}
+qqnorm(mydata$Price, ylab = "Price")
+qqline(mydata$Price)
+qqnorm(log(mydata$Price), ylab = "LogPrice") 
+qqline(log(mydata$Price))
+```
+
+Facciamo un confronto anche di altre variabili quantitative che potrebbero invece avere una distribuzione normale
+
+```{r}
+#lunghezza
+qqnorm(mydata$Length, ylab = "Length")
+qqline(mydata$Length)
+#largezza
+qqnorm(mydata$Width, ylab = "Width")
+qqline(mydata$Width)
+#altezza
+qqnorm(mydata$Height, ylab = "Height")
+qqline(mydata$Height)
+```
+
+A partire dai qqplot si deduce che le variabili Length e Height hanno una tendenza normale, mentre la variabile Width no.
+
+### ANALISI BIVARIATA
+
+Cominciamo a cercare un po di relazioni fra le variabili. Consideriamo il prezzo come VARIABILE RISPOSTA e cambiamo la VARIABILE COVARIATA di volta in volta.
+
+confronto tra due insiemi di dati osservati:
+
+#### PRICE vs ASPIRATION (qualitativa vs categoriale)
+
+```{r}
+ggplot(mydata, aes(x=Aspiration, y=log(Price), fill=Aspiration))+
+  geom_boxplot() + theme_gray(base_size = 14)
+mean(log(mydata$Price[mydata$Aspiration=="std"]))
+mean(log(mydata$Price[mydata$Aspiration=="turbo"]))
+
+```
+
+I boxplot mostrano che può esserci una correlazione significativa tra il tipo di aspirazione e il prezzo.
+
+#### PRICE vs FUELTYPE
+
+```{r}
+ggplot(mydata, aes(x=FuelType, y=log(Price), fill=FuelType))+
+  geom_boxplot()
+#i diesel costao in media un po di piu
+mean(log(mydata$Price[mydata$FuelType=="diesel"]))
+mean(log(mydata$Price[mydata$FuelType=="gas"]))
+```
+
+Notiamo che ancora una volta c'è una differenza di medie tra le auto a benzina e quelle a diesel. Indaghiamo sulla significatività di tale differenza.
+
+### TEST SULLE DIFFERENZE TROVATE
+
+#### Facciamo un test per vedere se questa differenza è significativa
+
+1)  PRICE vs FUELTYPE
+
+```{r}
+t.test(log(mydata$Price[mydata$FuelType=="diesel"]),
+           log(mydata$Price[mydata$FuelType=="gas"]), alternative = "two.sided")
+```
+
+Siccome il p-value è attorno a 0.05, siamo all'interno dell'intervallo di confidenza al 95%, e quindi non abbiamo prove sufficienti per rifiutare l'ipotesi nulla che il prezzo delle auto diesel non sia significativamente diverso da quello delle macchine a benzina.
+
+Passiamo a vedere se la differenza per tipo di aspirazione è significativa
+
+2)  PRICE vs ASPIRATION
+
+```{r}
+t.test(log(mydata$Price[mydata$Aspiration=="std"]),
+           log(mydata$Price[mydata$Aspiration=="turbo"]), alternative = "two.sided")
+```
+
+Siccome il p-value è molto minore di 0.05, abbiamo prove sufficienti per rifiutare l'ipotesi nulla che il prezzo delle auto ad aspirazione standard non è significativamente diverso da quello delle macchine ad aspirazione turbo. In altre parole, il test ci dice che le macchina Turbo sono significativamente più costose delle macchine Standard.
+
+3)  PRICE vs BODYSTYLE
+
+```{r}
+BodyStyle
+ggplot(mydata, aes(x=BodyStyle, y=log(Price), fill=BodyStyle))+
+  geom_boxplot()
+#si vede che le macchine con hatcback (bagagliaio alto) sono piu economiche delle altre
+```
+
+Notando che le medie variano tra i vari stili di vetture, indaghiamo con il test ANOVA la significatività di tali differenze.
+
+```{r}
+#ANOVA
+df_aov <- aov(log(Price) ~ BodyStyle, data = mydata) #Fischer's classic ANOVA function
+summary(df_aov)
+print(df_aov)
+```
+
+Dal test possiamo notare che c'è una differenza significativa, fra le medie dei gruppi. Dal boxplot possiamo assumere che almeno il prezzo delle auto hatcback sia sensibilmente differente dal prezzo delle altre auto.
+
+4)  PRICE vs DRIVE.WHEELS
+
+```{r}
+DriveWheels
+ggplot(mydata, aes(x=DriveWheels, y=log(Price), fill=DriveWheels))+
+  geom_boxplot()
+
+```
+
+```{r}
+#ANOVA
+wheel_price_aov <- aov(log(Price) ~ DriveWheels, data = mydata) 
+summary(wheel_price_aov)
+print(wheel_price_aov)
+```
+
+Il F-value è molto piccolo e questo porta a rifiutare l'ipotesi nulla che non vi sia sostanziale variabilità nel prezzo a seconda del tipo di trazione.
+
+## 3. ANALISI MULTIVARIATA
+
+Vogliamo visualizzare alcune delle relazioni che intercorrono fra più di due variabili del dataset.
+
+#### PRICE vs CITYMPG vs FUELTYPE
+
+Vogliamo vedere la relazione che intercorre tra il **prezzo** delle auto e il loro **consumo di carburante** in città insieme alla tipologia di **carburante**.
+
+Possiamo ipotizzare che le auto costose facciano meno chilometri con un litro, e che le machine diesel costino in media di più.
+
+```{r message=FALSE, warning=FALSE}
+ggplot(mapping = aes(x=CityMpg, y=log(Price)), data=mydata) + 
+  geom_point( alpha=0.4) + geom_smooth(aes(colour=FuelType),method = "lm", se=F) +
+  theme_gray(base_size = 14)
+
+```
+
+Come ipotizzavamo, esiste una correlazione negativa tra prezzo e consumo in città.
+
+#### PRICE vs ENGINE.SIZE vs NUM.CILINDERS
+
+Adesso siamo interessati a vedere il collegamento tra prezzo, grandezza del motore e numero di cilindri.
+
+Anche qui ci aspettiamo che ci sia una correlazione positiva: i motori grossi costano di più e hanno più cilindri.
+
+```{r message=FALSE, warning=FALSE}
+ggplot(mapping = aes(x=EngineSize, y=log(Price)), data=mydata) + 
+  geom_point( alpha=0.4) + geom_smooth(aes(colour=NumOfCylinders),method = "lm", se=F) + 
+   theme_gray(base_size = 14)
+```
+
+Anche qui l'ipotesi sembra essere corretta.
+
+#### PRICE vs HORSEPOWER vs FUEL.TYPE
+
+Un'altra analisi interessante è vedere che relazione c'è tra **prezzo** e numero di **cavalli**. E anche qui cerchiamo di scoprire se cambia qualcosa a seconda del **carburante**.
+
+```{r message=FALSE, warning=FALSE}
+# c'è una relazione interessante tra horsepower e prezzo come ci potevamo aspettare
+ggplot(mapping = aes(x=Horsepower, y=log(Price)), data=mydata) + 
+  geom_point(alpha=0.4) + geom_smooth(aes(colour=FuelType), method = "lm", se=F)
+```
+
+In sintesi notiamo che più cavalli abbiamo , più costa l'auto, ma quelle **diesel** all'aumentare dei cavalli sembrano essere più costose.
+
+Insomma se voglio una macchina con tanti cavalli meglio prenderla a benzina.
+
+#### PRICE vs HORSEPOWER vs ASPIRATION
+
+Infine analizziamo come varia il **prezzo** a seconda del numero di **cavalli** e il tipo di **aspirazione**.
+
+Anche qui ci aspettiamo che il prezzo sia più alto al crescere del numero dei cavalli e che l'aspirazione turbo abbia una tendenza ad essere più costosa.
+
+```{r message=FALSE, warning=FALSE}
+ggplot(mapping = aes(x=Horsepower, y=log(Price)), data=mydata) + 
+  geom_point(alpha=0.4) + geom_smooth(aes(colour=Aspiration), method = "lm", se=F)
+```
+
+E invece notiamo una cosa interessante: il prezzo dell'aspirazione turbo è più alto fino a circa 130 cavalli, ma poi conviene prendere una macchina turbo anzichè standard! Questo probabilmente perché con l'aspirazione turbo si risparmia qualcosa in termini di costo dell' infrastruttura del motore e prestazioni.
+
+## REGRESSIONE LINEARE
+
+Una volta fatta un'analisi esplorativa dei dati, decidiamo di provare a creare un **modello di regressione** lineare che provi a descrivere in modo significativo i dati che abbiamo a disposizione.
+
+#### Regressione lineare semplice
+
+Iniziamo con una regressione lineare semplice, prendendo come variabile covariata **Horsepower**, che sappiamo avere una correlazione alta col prezzo.
+
+```{r}
+reg<-lm(log(Price)~Horsepower, data=mydata)
+summary(reg)
+```
+
+Notiamo che le stime dell'intercetta e dello slope della retta di regressione sono significative dal punto statistico, e che il modello è accettabile avendo un R2 elevato.
+
+Dopo una serie di test abbiamo deciso di migliorare il modello aggiungendo altre variabili correlate al prezzo.
+
+#### Regressione lineare
+
+```{r}
+linear <- lm(log(Price) ~ Make + Aspiration + BodyStyle + WheelBase + Length + Width +
+               Height + CurbWeight + NumOfCylinders + EngineSize + PeakRpm + 
+               FuelType + EngineLocation, data = mydata)
+summary(linear)
+```
+
+Il modello ottenuto è molto soddisfacente è possiamo ritenere che sia significativamente predittivo sulla variabile risposta price.
+
+Per esserne sicuri comunque andiamo a vedere l'analisi dei residui.
+
+#### Analisi dei residui
+
+```{r message=FALSE, warning=FALSE}
+plot(linear,pch = 19)
+```
+
+Cerchiamo di capire se i residui soddisfano le proprietà di omschedasticità:
+
+1)  Il grafico tra i **fitted values** (il prezzo) e i **residui** ha una retta di regressione che è quasi **orizzontale**. Idealmente vogliamo che la distribuzione dei residui non cambi rispetto ai fitted value (B0=0)
+
+2)  Sembra inoltre che i residui si distribuiscano come una **normale** giudicando il grafico quantile quantile, cioè stanno piu o meno sulla bisettrice.
+
+3)  grafico **fitted values** e **residui standardizzati**, anche qui la retta di regressione è orizzontale e vediamo che praticamente tutti i dati dati rientrano nell'intervallo $$-1.5,+1,5$$ della gaussiana a parte qualche piccolo outlier.
+
+4)  Nell'ultimo grafico vediamo che gli **outliers** stanno dentro alla distanza di Cook. Quindi la loro leva non crea grossi problemi al modello, e possiamo ritenerci soddisfatti.
+
+## CLUSTERING
+
+Vogliamo individuare dei sottogruppi di osservazioni che siano omogenee secondo un determinato criterio.
+
+In particolare vogliamo vedere come possiamo suddividere il dataset in base al **prezzo** dell'auto e **consumo** **in città**, che potrebbe essere una domanda interessante che si potrebbe porre un compratore.
+
+Visualizziamo innanzitutto la distribuzione dei dati e poi cerchiamo una serie di gruppi simili tra loro.
+
+#### CITYMPG vs MAKE
+
+```{r}
+ggplot(data = mydata, aes(x=CityMpg,y=Make))+ geom_point(colour="darkblue", fill="lightblue") + ggtitle("CityMpg vs Make")
+```
+
+#### PRICE vs MAKE
+
+```{r}
+ggplot(data = mydata, aes(x=Price,y=Make))+ geom_point(colour="darkblue", fill="lightblue") + ggtitle("CityMpg vs Price")
+```
+
+Decidiamo di utilizzare il metodo delle **K-medie**, cercando di trovare un'indicazione del K migliore da utilizzare come riferimento per il metodo dei **medoidi**.
+
+```{r}
+df0<- mydata[, c("Make","CityMpg","Price")]
+df1<- mydata[, c("CityMpg","Price")]
+crit<-0
+for (i in 2:10 ) {
+  set.seed(7)
+  mydatagroup<- kmeans(scale(df1),i, nstart = 10)
+  crit[i-1]<-mydatagroup$tot.withinss
+}
+plot(1:9,crit, pch=19, xlab = "K", ylab = "whitinss", col="darkblue")
+```
+
+Abbiamo scelto di utilizzare K=4 per il metodo dei medoidi.
+
+```{r}
+pam.out<- pam(df1,4, metric = "euclidean", stand = T)
+pam.out$medoids
+plot(df1, col=(pam.out$cluster+1), main="PAM {K=4}",pch=20)
+points(pam.out$medoids, pch=as.character(pam.out$cluster[pam.out$id.med]))
+clusters<-as.factor(pam.out$cluster)
+ggplot(data = df0, aes(x=CityMpg,y=Make))+ geom_point(aes(colour=clusters))
+ggplot(data = df0, aes(x=Price,y=Make))+ geom_point(aes(colour=clusters))
+```
+
+```{r}
+plot(pam.out, which=2, main="", col = "green")
+```
+
+L'avarage silhouette è soddisfacente per aver scelto K=4.
+
+## CONCLUSIONI
+
+-   Abbiamo trovato relazioni interessanti tra le variabili, e abbiamo testato la significatività di queste relazioni.
+
+-   Abbiamo notato che LogPrice può essere interpretato come una normale.
+
+-   Abbiamo scovato informazioni interessanti tra le variabili correlate al prezzo.
+
+-   Abbiamo creato un modello di regressione lineare che possa predire, in base ai dati, l'andamento del prezzo.
+
+-   Abbiamo creato un suddivisione del dataset in base al consumo di carburante in città, aiutando un possibile compratore nella scelta dell'acquisto dell'auto.
